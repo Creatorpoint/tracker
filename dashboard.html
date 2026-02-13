@@ -60,7 +60,6 @@ button{
   border-radius:15px;
   width:320px;
 }
-small{color:#94a3b8;}
 </style>
 </head>
 <body>
@@ -129,14 +128,14 @@ const auth = getAuth(app);
 let chartInstance = null;
 
 /* LOGIN */
-window.login=function(){
-  const email=document.getElementById("email").value;
-  const pass=document.getElementById("password").value;
+window.login = function(){
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
   signInWithEmailAndPassword(auth,email,pass)
-  .catch(e=>alert(e.message));
+    .catch(e=>alert(e.message));
 }
 
-window.logout=function(){
+window.logout = function(){
   signOut(auth);
 }
 
@@ -156,21 +155,21 @@ function randomID(){
   return Math.random().toString(36).substring(2,8);
 }
 
-window.createLink=async function(){
-  const url=document.getElementById("url").value;
+window.createLink = async function(){
+  const url = document.getElementById("url").value;
   if(!url) return alert("Enter URL");
 
-  const id=randomID();
+  const id = randomID();
 
   await set(ref(db,"links/"+id),{
     original:url,
     created:Date.now()
   });
 
-  document.getElementById("result").innerHTML=
-  `<div class="linkBox">
-  https://creatorpoint.github.io/Prime_tracker/?id=${id}
-  </div>`;
+  document.getElementById("result").innerHTML =
+    `<div class="linkBox">
+      https://creatorpoint.github.io/Prime_tracker/?id=${id}
+    </div>`;
 }
 
 /* LOAD LINKS */
@@ -178,33 +177,37 @@ function loadHistory(){
   onValue(ref(db,"links"),(snapshot)=>{
     let html="";
     snapshot.forEach(link=>{
-      const id=link.key;
-      html+=`
-      <div class="linkBox">
-        <b>ID:</b> ${id}<br>
-        <small>${link.val().original}</small><br><br>
-        <button onclick="viewAnalytics('${id}')">View Analytics</button>
-      </div>`;
+      const id = link.key;
+      html += `
+        <div class="linkBox">
+          <b>ID:</b> ${id}<br>
+          ${link.val().original}<br><br>
+          <button onclick="viewAnalytics('${id}')">View Analytics</button>
+        </div>
+      `;
     });
-    document.getElementById("history").innerHTML=html;
+    document.getElementById("history").innerHTML = html;
   });
 }
 
 /* VIEW ANALYTICS */
-window.viewAnalytics=function(id){
+window.viewAnalytics = function(id){
+
   onValue(ref(db,"clicks/"+id),(snapshot)=>{
-    let total=0;
-    let dateData={};
-    let html="";
+
+    let total = 0;
+    let dateData = {};
+    let details = "";
 
     if(snapshot.exists()){
-      snapshot.forEach(click=>{
+
+      snapshot.forEach(child=>{
         total++;
-        const v=click.val();
+        const v = child.val();
 
-        dateData[v.date]=(dateData[v.date]||0)+1;
+        dateData[v.date] = (dateData[v.date] || 0) + 1;
 
-        html+=`
+        details += `
         <div class="linkBox">
           <b>IP:</b> ${v.ip || "-"}<br>
           <b>City:</b> ${v.city || "-"}<br>
@@ -217,14 +220,15 @@ window.viewAnalytics=function(id){
         </div>
         `;
       });
+
     }
 
-    document.getElementById("analyticsInfo").innerHTML=
-    `<h3>Total Clicks: ${total}</h3>` + html;
+    document.getElementById("analyticsInfo").innerHTML =
+      `<h3>Total Clicks: ${total}</h3>` + details;
 
-    if(chartInstance){chartInstance.destroy();}
+    if(chartInstance) chartInstance.destroy();
 
-    chartInstance=new Chart(
+    chartInstance = new Chart(
       document.getElementById("dateChart"),
       {
         type:"line",
@@ -238,7 +242,9 @@ window.viewAnalytics=function(id){
         }
       }
     );
+
   });
+
 }
 
 </script>
