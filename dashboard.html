@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#f3f4f6;
+}
+
+.header{
+  background:#111827;
+  color:white;
+  padding:15px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.container{
+  padding:20px;
+}
+
+.card{
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  box-shadow:0 5px 20px rgba(0,0,0,0.1);
+  margin-bottom:20px;
+}
+
+button{
+  padding:10px 15px;
+  border:none;
+  background:#111827;
+  color:white;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+button:hover{
+  background:#2563eb;
+}
+
+input{
+  padding:10px;
+  width:100%;
+  margin-bottom:10px;
+}
+</style>
+
+</head>
+<body>
+
+<script>
+if(localStorage.getItem("adminLoggedIn") !== "true"){
+  window.location.href="index.html";
+}
+</script>
+
+<div class="header">
+  <h3>Prime Tracker Dashboard</h3>
+  <button onclick="logout()">Logout</button>
+</div>
+
+<div class="container">
+
+<div class="card">
+<h3>Create Tracking Link</h3>
+<input type="text" id="originalURL" placeholder="Enter Original URL">
+<button onclick="createLink()">Generate Link</button>
+<p id="result"></p>
+</div>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAk7OeIvh-D7NC_QKkQNMria4GxL5fT2ws",
+  authDomain: "prime-f23e6.firebaseapp.com",
+  databaseURL: "https://prime-f23e6-default-rtdb.firebaseio.com/",
+  projectId: "prime-f23e6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+function randomID(){
+  return Math.random().toString(36).substring(2,8);
+}
+
+window.createLink = function(){
+  const url = document.getElementById("originalURL").value;
+  if(!url) return alert("Enter URL");
+
+  const id = randomID();
+
+  set(ref(db,"links/"+id),{
+    original: url,
+    created: Date.now()
+  });
+
+  const trackingLink = "https://creatorpoint.github.io/Prime_tracker/?id="+id;
+
+  document.getElementById("result").innerHTML =
+    `<b>Tracking Link:</b><br>
+    <a href="${trackingLink}" target="_blank">${trackingLink}</a>`;
+}
+
+window.logout = function(){
+  localStorage.removeItem("adminLoggedIn");
+  window.location.href="index.html";
+}
+
+</script>
+
+</body>
+</html>
