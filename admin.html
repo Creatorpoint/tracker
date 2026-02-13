@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Create Tracking Link</title>
+</head>
+<body>
+
+<h2>Create New Tracking Link</h2>
+
+<input id="url" placeholder="Original URL">
+<input id="campaign" placeholder="Campaign Name (optional)">
+<button onclick="createLink()">Generate</button>
+
+<p id="result"></p>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = { /* same config */ };
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+function randomCode(){
+  return Math.random().toString(36).substring(2,8);
+}
+
+window.createLink = async function(){
+
+  const url = document.getElementById("url").value;
+  const campaign = document.getElementById("campaign").value;
+  const code = randomCode();
+
+  await set(ref(db,"links/"+code),{
+    original:url,
+    campaign: campaign || "default",
+    createdAt:Date.now()
+  });
+
+  document.getElementById("result").innerHTML =
+  "Tracking Link:<br><b>https://creatorpoint.github.io/Prime_tracker/?id="+code+"</b>";
+}
+
+</script>
+
+</body>
+</html>
