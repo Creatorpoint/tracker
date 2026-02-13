@@ -2,94 +2,89 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Prime Tracker Admin</title>
+<title>Prime Tracker Pro</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body{
   margin:0;
-  font-family:Arial;
-  display:flex;
-  background:#f3f4f6;
-}
-
-.sidebar{
-  width:250px;
-  background:#111827;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg,#0f172a,#1e293b);
   color:white;
-  height:100vh;
+}
+
+.header{
   padding:20px;
-  overflow-y:auto;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
 }
 
-.sidebar h2{
-  margin-bottom:20px;
-}
-
-.sidebar ul{
-  list-style:none;
-  padding:0;
-}
-
-.sidebar li{
-  padding:10px;
-  cursor:pointer;
-  border-radius:6px;
-}
-
-.sidebar li:hover{
-  background:#1f2937;
-}
-
-.main{
-  flex:1;
+.container{
   padding:20px;
-  overflow-y:auto;
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(300px,1fr));
+  gap:20px;
 }
 
 .card{
-  background:white;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(15px);
   padding:20px;
-  border-radius:10px;
-  margin-bottom:20px;
-  box-shadow:0 5px 15px rgba(0,0,0,0.08);
+  border-radius:20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.stat{
+  font-size:35px;
+  font-weight:bold;
+  margin-top:10px;
 }
 
 input{
   width:100%;
-  padding:10px;
+  padding:12px;
+  border-radius:10px;
+  border:none;
   margin-bottom:10px;
 }
 
 button{
-  padding:10px 15px;
-  background:#2563eb;
-  color:white;
+  padding:12px;
   border:none;
-  border-radius:6px;
+  border-radius:10px;
+  background:linear-gradient(90deg,#3b82f6,#06b6d4);
+  color:white;
   cursor:pointer;
+}
+.live{
+  color:#22c55e;
+  font-weight:bold;
 }
 </style>
 </head>
 <body>
 
-<div class="sidebar">
-  <h2>Prime Tracker</h2>
-  <ul id="linkList"></ul>
+<div class="header">
+<h2>🚀 Prime Tracker Pro</h2>
+<div class="live">Live Visitors: <span id="liveCount">0</span></div>
 </div>
 
-<div class="main">
+<div class="container">
 
 <div class="card">
 <h3>Create Tracking Link</h3>
-<input type="text" id="originalURL" placeholder="Enter Original URL">
-<button onclick="createLink()">Generate Link</button>
+<input type="text" id="url" placeholder="Enter URL">
+<button onclick="createLink()">Generate</button>
 <div id="result"></div>
 </div>
 
 <div class="card">
-<h3>Total Clicks: <span id="totalClicks">0</span></h3>
-<h3>Unique Visitors: <span id="uniqueClicks">0</span></h3>
+<h3>Total Clicks</h3>
+<div class="stat" id="totalClicks">0</div>
 </div>
 
 <div class="card">
@@ -103,7 +98,7 @@ button{
 </div>
 
 <div class="card">
-<h3>Date-wise Graph</h3>
+<h3>Daily Click Trend</h3>
 <canvas id="dateChart"></canvas>
 </div>
 
@@ -129,80 +124,71 @@ function randomID(){
 }
 
 window.createLink = async function(){
-  const url = document.getElementById("originalURL").value;
+  const url=document.getElementById("url").value;
   if(!url) return alert("Enter URL");
-
-  const id = randomID();
-
+  const id=randomID();
   await set(ref(db,"links/"+id),{
     original:url,
     created:Date.now()
   });
-
-  document.getElementById("result").innerHTML =
-  `<p><b>Tracking Link:</b><br>
-  https://creatorpoint.github.io/Prime_tracker/?id=${id}</p>`;
-
-  loadLinks();
+  document.getElementById("result").innerHTML=
+  `https://creatorpoint.github.io/Prime_tracker/?id=${id}`;
 }
 
-function loadLinks(){
-  onValue(ref(db,"links"),(snapshot)=>{
-    const list = document.getElementById("linkList");
-    list.innerHTML="";
-    snapshot.forEach(link=>{
-      const li=document.createElement("li");
-      li.innerText=link.key;
-      li.onclick=()=>loadAnalytics(link.key);
-      list.appendChild(li);
-    });
-  });
-}
+// 🔴 LIVE VISITOR COUNT
+onValue(ref(db,"liveUsers"),(snapshot)=>{
+  document.getElementById("liveCount").innerText =
+  snapshot.exists() ? snapshot.size : 0;
+});
 
-function loadAnalytics(id){
+// 📊 ANALYTICS
+onValue(ref(db,"clicks"),(snapshot)=>{
 
-  onValue(ref(db,"clicks/"+id),(snapshot)=>{
+  let total=0;
+  let countryData={}, deviceData={}, dateData={};
 
-    let total=0;
-    let countryData={};
-    let deviceData={};
-    let dateData={};
-    let uniqueSet=new Set();
-
-    snapshot.forEach(click=>{
+  snapshot.forEach(link=>{
+    link.forEach(click=>{
       total++;
       const v=click.val();
-
       countryData[v.country]=(countryData[v.country]||0)+1;
       deviceData[v.device]=(deviceData[v.device]||0)+1;
       dateData[v.date]=(dateData[v.date]||0)+1;
-
-      uniqueSet.add(v.device+v.country);
     });
-
-    document.getElementById("totalClicks").innerText=total;
-    document.getElementById("uniqueClicks").innerText=uniqueSet.size;
-
-    renderChart("countryChart",countryData,"bar");
-    renderChart("deviceChart",deviceData,"pie");
-    renderChart("dateChart",dateData,"line");
   });
-}
+
+  animateCounter("totalClicks",total);
+  renderChart("countryChart",countryData,"doughnut");
+  renderChart("deviceChart",deviceData,"pie");
+  renderChart("dateChart",dateData,"line");
+
+});
 
 function renderChart(id,data,type){
-
   new Chart(document.getElementById(id),{
     type:type,
     data:{
       labels:Object.keys(data),
       datasets:[{
-        data:Object.values(data)
+        data:Object.values(data),
+        borderWidth:2
       }]
     }
   });
 }
 
-loadLinks();
+function animateCounter(id,value){
+  let start=0;
+  const el=document.getElementById(id);
+  const interval=setInterval(()=>{
+    start+=Math.ceil(value/30);
+    if(start>=value){
+      start=value;
+      clearInterval(interval);
+    }
+    el.innerText=start;
+  },30);
+}
 
 </script>
 
