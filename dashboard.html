@@ -16,6 +16,7 @@ body{
   padding:15px 20px;
   display:flex;
   justify-content:space-between;
+  align-items:center;
   background:rgba(255,255,255,0.05);
 }
 .container{padding:20px;}
@@ -33,7 +34,7 @@ input{
   border:none;
 }
 button{
-  padding:10px;
+  padding:10px 15px;
   border:none;
   border-radius:8px;
   background:#3b82f6;
@@ -42,7 +43,7 @@ button{
 }
 .linkBox{
   background:#334155;
-  padding:10px;
+  padding:12px;
   border-radius:8px;
   margin:10px 0;
 }
@@ -59,6 +60,7 @@ button{
   border-radius:15px;
   width:320px;
 }
+small{color:#94a3b8;}
 </style>
 </head>
 <body>
@@ -83,6 +85,7 @@ button{
 
   <div class="container">
 
+    <!-- Generate -->
     <div class="card">
       <h4>Generate Tracking Link</h4>
       <input type="text" id="url" placeholder="Enter Target URL">
@@ -90,14 +93,16 @@ button{
       <div id="result"></div>
     </div>
 
+    <!-- History -->
     <div class="card">
-      <h4>Generated Links History</h4>
+      <h4>Generated Links</h4>
       <div id="history"></div>
     </div>
 
+    <!-- Analytics -->
     <div class="card">
       <h4>Link Analytics</h4>
-      <div id="analyticsInfo">Select any link to view analytics</div>
+      <div id="analyticsInfo">Select a link to view analytics</div>
       <canvas id="dateChart"></canvas>
     </div>
 
@@ -121,8 +126,9 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const auth = getAuth(app);
 
-let chartInstance=null;
+let chartInstance = null;
 
+/* LOGIN */
 window.login=function(){
   const email=document.getElementById("email").value;
   const pass=document.getElementById("password").value;
@@ -145,6 +151,7 @@ onAuthStateChanged(auth,(user)=>{
   }
 });
 
+/* GENERATE LINK */
 function randomID(){
   return Math.random().toString(36).substring(2,8);
 }
@@ -154,6 +161,7 @@ window.createLink=async function(){
   if(!url) return alert("Enter URL");
 
   const id=randomID();
+
   await set(ref(db,"links/"+id),{
     original:url,
     created:Date.now()
@@ -165,6 +173,7 @@ window.createLink=async function(){
   </div>`;
 }
 
+/* LOAD LINKS */
 function loadHistory(){
   onValue(ref(db,"links"),(snapshot)=>{
     let html="";
@@ -172,8 +181,8 @@ function loadHistory(){
       const id=link.key;
       html+=`
       <div class="linkBox">
-        <b>${id}</b><br>
-        ${link.val().original}<br>
+        <b>ID:</b> ${id}<br>
+        <small>${link.val().original}</small><br><br>
         <button onclick="viewAnalytics('${id}')">View Analytics</button>
       </div>`;
     });
@@ -181,21 +190,37 @@ function loadHistory(){
   });
 }
 
+/* VIEW ANALYTICS */
 window.viewAnalytics=function(id){
   onValue(ref(db,"clicks/"+id),(snapshot)=>{
     let total=0;
     let dateData={};
+    let html="";
 
     if(snapshot.exists()){
       snapshot.forEach(click=>{
         total++;
         const v=click.val();
+
         dateData[v.date]=(dateData[v.date]||0)+1;
+
+        html+=`
+        <div class="linkBox">
+          <b>IP:</b> ${v.ip || "-"}<br>
+          <b>City:</b> ${v.city || "-"}<br>
+          <b>Country:</b> ${v.country || "-"}<br>
+          <b>Region:</b> ${v.region || "-"}<br>
+          <b>ISP:</b> ${v.org || "-"}<br>
+          <b>Timezone:</b> ${v.timezone || "-"}<br>
+          <b>Device:</b> ${v.device || "-"}<br>
+          <b>Date:</b> ${v.date || "-"}
+        </div>
+        `;
       });
     }
 
     document.getElementById("analyticsInfo").innerHTML=
-    `<h3>Total Clicks: ${total}</h3>`;
+    `<h3>Total Clicks: ${total}</h3>` + html;
 
     if(chartInstance){chartInstance.destroy();}
 
