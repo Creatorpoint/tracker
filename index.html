@@ -3,103 +3,72 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Prime Tracker Pro</title>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body{
-  margin:0;
-  font-family: 'Segoe UI', sans-serif;
-  background: linear-gradient(135deg,#0f172a,#1e293b);
-  color:white;
-}
-
+body{margin:0;font-family:Arial;background:#0f172a;color:white;}
 .header{
-  padding:20px;
+  background:#111827;
+  padding:15px 20px;
   display:flex;
   justify-content:space-between;
-  align-items:center;
-  background:rgba(255,255,255,0.05);
-  backdrop-filter: blur(10px);
 }
-
-.container{
-  padding:20px;
-  display:grid;
-  grid-template-columns: repeat(auto-fit,minmax(300px,1fr));
-  gap:20px;
-}
-
+.container{padding:20px;}
 .card{
-  background: rgba(255,255,255,0.05);
-  backdrop-filter: blur(15px);
+  background:#1e293b;
   padding:20px;
-  border-radius:20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  border-radius:12px;
+  margin-bottom:20px;
 }
-
-.stat{
-  font-size:35px;
-  font-weight:bold;
-  margin-top:10px;
-}
-
-input{
-  width:100%;
-  padding:12px;
-  border-radius:10px;
-  border:none;
-  margin-bottom:10px;
-}
-
-button{
-  padding:12px;
-  border:none;
-  border-radius:10px;
-  background:linear-gradient(90deg,#3b82f6,#06b6d4);
-  color:white;
-  cursor:pointer;
-}
-.live{
-  color:#22c55e;
-  font-weight:bold;
-}
+input{width:100%;padding:10px;margin-bottom:10px;}
+button{padding:10px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;}
+.small{font-size:14px;color:#94a3b8;}
 </style>
 </head>
 <body>
 
 <div class="header">
-<h2>🚀 Prime Tracker Pro</h2>
-<div class="live">Live Visitors: <span id="liveCount">0</span></div>
+<h2>Prime Tracker Admin</h2>
+<div>Live: <span id="liveCount">0</span></div>
 </div>
 
 <div class="container">
 
+<div id="loginBox" class="card">
+<h3>Admin Login</h3>
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</div>
+
+<div id="dashboard" style="display:none;">
+
 <div class="card">
-<h3>Create Tracking Link</h3>
-<input type="text" id="url" placeholder="Enter URL">
+<h3>Create Link</h3>
+<input id="url" placeholder="Enter URL">
 <button onclick="createLink()">Generate</button>
 <div id="result"></div>
 </div>
 
 <div class="card">
-<h3>Total Clicks</h3>
-<div class="stat" id="totalClicks">0</div>
+<h3>Generated Links</h3>
+<div id="linkHistory"></div>
 </div>
 
 <div class="card">
-<h3>Country Breakdown</h3>
-<canvas id="countryChart"></canvas>
-</div>
-
-<div class="card">
-<h3>Device Breakdown</h3>
-<canvas id="deviceChart"></canvas>
-</div>
-
-<div class="card">
-<h3>Daily Click Trend</h3>
+<h3>Total Clicks: <span id="totalClicks">0</span></h3>
 <canvas id="dateChart"></canvas>
+</div>
+
+<div class="card">
+<h3>Add New Admin</h3>
+<input id="newAdminEmail" placeholder="New Admin Email">
+<input id="newAdminPass" placeholder="Password">
+<button onclick="addAdmin()">Create Admin</button>
+</div>
+
+<button onclick="logout()">Logout</button>
+
 </div>
 
 </div>
@@ -108,6 +77,7 @@ button{
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAk7OeIvh-D7NC_QKkQNMria4GxL5fT2ws",
@@ -118,77 +88,97 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth(app);
+
+window.login=()=>{
+  signInWithEmailAndPassword(auth,
+    email.value,
+    password.value
+  ).catch(e=>alert(e.message));
+}
+
+window.logout=()=>signOut(auth);
+
+window.addAdmin=()=>{
+  createUserWithEmailAndPassword(auth,
+    newAdminEmail.value,
+    newAdminPass.value
+  ).then(()=>alert("Admin Created"))
+  .catch(e=>alert(e.message));
+}
+
+onAuthStateChanged(auth,user=>{
+  if(user){
+    loginBox.style.display="none";
+    dashboard.style.display="block";
+    loadLinks();
+    loadStats();
+  }else{
+    loginBox.style.display="block";
+    dashboard.style.display="none";
+  }
+});
 
 function randomID(){
   return Math.random().toString(36).substring(2,8);
 }
 
-window.createLink = async function(){
-  const url=document.getElementById("url").value;
-  if(!url) return alert("Enter URL");
+window.createLink=async()=>{
   const id=randomID();
   await set(ref(db,"links/"+id),{
-    original:url,
+    original:url.value,
     created:Date.now()
   });
-  document.getElementById("result").innerHTML=
-  `https://creatorpoint.github.io/Prime_tracker/?id=${id}`;
+  result.innerHTML=`https://creatorpoint.github.io/Prime_tracker/?id=${id}`;
+  loadLinks();
 }
 
-// 🔴 LIVE VISITOR COUNT
-onValue(ref(db,"liveUsers"),(snapshot)=>{
-  document.getElementById("liveCount").innerText =
-  snapshot.exists() ? snapshot.size : 0;
-});
-
-// 📊 ANALYTICS
-onValue(ref(db,"clicks"),(snapshot)=>{
-
-  let total=0;
-  let countryData={}, deviceData={}, dateData={};
-
-  snapshot.forEach(link=>{
-    link.forEach(click=>{
-      total++;
-      const v=click.val();
-      countryData[v.country]=(countryData[v.country]||0)+1;
-      deviceData[v.device]=(deviceData[v.device]||0)+1;
-      dateData[v.date]=(dateData[v.date]||0)+1;
+function loadLinks(){
+  onValue(ref(db,"links"),snap=>{
+    linkHistory.innerHTML="";
+    snap.forEach(l=>{
+      const div=document.createElement("div");
+      div.className="small";
+      div.innerText=`${l.key}`;
+      linkHistory.appendChild(div);
     });
   });
+}
 
-  animateCounter("totalClicks",total);
-  renderChart("countryChart",countryData,"doughnut");
-  renderChart("deviceChart",deviceData,"pie");
-  renderChart("dateChart",dateData,"line");
+function loadStats(){
+  onValue(ref(db,"clicks"),snap=>{
+    let total=0;
+    let dateData={};
 
-});
+    snap.forEach(link=>{
+      link.forEach(click=>{
+        total++;
+        const d=click.val().date;
+        dateData[d]=(dateData[d]||0)+1;
+      });
+    });
 
-function renderChart(id,data,type){
-  new Chart(document.getElementById(id),{
-    type:type,
+    totalClicks.innerText=total;
+    renderChart(dateData);
+  });
+}
+
+function renderChart(data){
+  new Chart(dateChart,{
+    type:"line",
     data:{
       labels:Object.keys(data),
       datasets:[{
         data:Object.values(data),
-        borderWidth:2
+        borderColor:"#3b82f6"
       }]
     }
   });
 }
 
-function animateCounter(id,value){
-  let start=0;
-  const el=document.getElementById(id);
-  const interval=setInterval(()=>{
-    start+=Math.ceil(value/30);
-    if(start>=value){
-      start=value;
-      clearInterval(interval);
-    }
-    el.innerText=start;
-  },30);
-}
+onValue(ref(db,"liveUsers"),snap=>{
+  liveCount.innerText=snap.exists()?snap.size:0;
+});
 
 </script>
 
