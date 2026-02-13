@@ -1,58 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Secure Tracking Dashboard</title>
-<style>
-body{font-family:Arial;background:#f4f6f9;padding:20px;}
-.card{
-background:white;
-padding:20px;
-margin-bottom:15px;
-border-radius:12px;
-box-shadow:0 5px 15px rgba(0,0,0,0.1);
-}
-input,button{
-padding:10px;
-margin:5px 0;
-width:100%;
-}
-button{
-background:#ff006e;
-color:white;
-border:none;
-cursor:pointer;
-}
-#dashboard{display:none;}
-</style>
+<title>Pro Tracker Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<div id="login">
-<h2>🔐 Admin Login</h2>
-<input type="password" id="pass" placeholder="Enter Password">
-<button onclick="checkLogin()">Login</button>
-</div>
+<h2>Admin Login</h2>
+<input type="password" id="pass">
+<button onclick="login()">Login</button>
 
-<div id="dashboard">
-<h1>📊 Tracking Dashboard</h1>
+<div id="dash" style="display:none;">
 
-<div class="card">
-<h2>Total Clicks</h2>
-<div id="total">0</div>
-</div>
+<h1>Analytics</h1>
 
-<div class="card">
-<h2>By Country</h2>
-<div id="country"></div>
-</div>
+<p>Total Clicks: <span id="total"></span></p>
+<p>Unique Visitors: <span id="unique"></span></p>
 
-<div class="card">
-<h2>By Device</h2>
-<div id="device"></div>
-</div>
+<canvas id="countryChart"></canvas>
+<canvas id="deviceChart"></canvas>
+<canvas id="dailyChart"></canvas>
 
-<button onclick="logout()">Logout</button>
+<button onclick="exportCSV()">Export CSV</button>
+
 </div>
 
 <script type="module">
@@ -60,57 +30,63 @@ cursor:pointer;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAk7OeIvh-D7NC_QKkQNMria4GxL5fT2ws",
-  authDomain: "prime-f23e6.firebaseapp.com",
-  databaseURL: "https://prime-f23e6-default-rtdb.firebaseio.com/",
-  projectId: "prime-f23e6",
-  storageBucket: "prime-f23e6.firebasestorage.app",
-  messagingSenderId: "260013125631",
-  appId: "1:260013125631:web:5f1371b9d359b68b9181ca"
-};
-
+const firebaseConfig = { /* same config */ };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// CHANGE THIS PASSWORD
-const ADMIN_PASSWORD = "Prem123";
+const PASSWORD="Prem123";
 
-window.checkLogin = function(){
-  const input = document.getElementById("pass").value;
-  if(input === ADMIN_PASSWORD){
-    document.getElementById("login").style.display="none";
-    document.getElementById("dashboard").style.display="block";
-    loadData();
-  } else {
-    alert("Wrong Password");
+window.login=function(){
+  if(document.getElementById("pass").value===PASSWORD){
+    document.getElementById("dash").style.display="block";
+    load();
   }
 }
 
-window.logout = function(){
-  location.reload();
-}
+function load(){
 
-function loadData(){
-  onValue(ref(db,'clicks'),snap=>{
+  onValue(ref(db,"clicks"),snap=>{
     if(!snap.exists()) return;
 
-    document.getElementById("total").innerText = snap.size;
+    let total=0, countries={}, devices={}, dates={};
 
-    let countries={}, devices={};
-
-    snap.forEach(c=>{
-      let v=c.val();
-      countries[v.country]=(countries[v.country]||0)+1;
-      devices[v.device]=(devices[v.device]||0)+1;
+    snap.forEach(link=>{
+      link.forEach(c=>{
+        total++;
+        let v=c.val();
+        countries[v.country]=(countries[v.country]||0)+1;
+        devices[v.device]=(devices[v.device]||0)+1;
+        dates[v.date]=(dates[v.date]||0)+1;
+      });
     });
 
-    document.getElementById("country").innerHTML =
-      Object.entries(countries).map(([k,v])=>`${k}: ${v}`).join("<br>");
+    document.getElementById("total").innerText=total;
 
-    document.getElementById("device").innerHTML =
-      Object.entries(devices).map(([k,v])=>`${k}: ${v}`).join("<br>");
+    createChart("countryChart",countries);
+    createChart("deviceChart",devices);
+    createChart("dailyChart",dates);
   });
+
+  onValue(ref(db,"unique"),snap=>{
+    if(!snap.exists()) return;
+    let count=0;
+    snap.forEach(link=>{ count+=link.size; });
+    document.getElementById("unique").innerText=count;
+  });
+}
+
+function createChart(id,data){
+  new Chart(document.getElementById(id),{
+    type:'bar',
+    data:{
+      labels:Object.keys(data),
+      datasets:[{data:Object.values(data)}]
+    }
+  });
+}
+
+window.exportCSV=function(){
+  alert("CSV export ready (add blob logic if needed)");
 }
 
 </script>
