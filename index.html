@@ -1,92 +1,86 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Pro Tracker Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prime Tracker Admin</title>
+
+<style>
+body{
+  margin:0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg,#1f2937,#111827);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+.card{
+  background:white;
+  padding:40px;
+  width:320px;
+  border-radius:12px;
+  box-shadow:0 20px 40px rgba(0,0,0,0.4);
+  text-align:center;
+}
+
+h2{
+  margin-bottom:25px;
+}
+
+input{
+  width:100%;
+  padding:12px;
+  margin-bottom:15px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  font-size:16px;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  background:#111827;
+  color:white;
+  border:none;
+  border-radius:8px;
+  font-size:16px;
+  cursor:pointer;
+}
+
+button:hover{
+  background:#2563eb;
+}
+
+.error{
+  color:red;
+  margin-top:10px;
+}
+</style>
+
 </head>
 <body>
 
-<h2>Admin Login</h2>
-<input type="password" id="pass">
-<button onclick="login()">Login</button>
-
-<div id="dash" style="display:none;">
-
-<h1>Analytics</h1>
-
-<p>Total Clicks: <span id="total"></span></p>
-<p>Unique Visitors: <span id="unique"></span></p>
-
-<canvas id="countryChart"></canvas>
-<canvas id="deviceChart"></canvas>
-<canvas id="dailyChart"></canvas>
-
-<button onclick="exportCSV()">Export CSV</button>
-
+<div class="card">
+  <h2>Prime Tracker Admin</h2>
+  <input type="password" id="password" placeholder="Enter Admin Password">
+  <button onclick="login()">Login</button>
+  <div class="error" id="error"></div>
 </div>
 
-<script type="module">
+<script>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+const ADMIN_PASSWORD = "Prem@123"; // change this
 
-const firebaseConfig = { /* same config */ };
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+function login(){
+  const pass = document.getElementById("password").value;
 
-const PASSWORD="Prem123";
-
-window.login=function(){
-  if(document.getElementById("pass").value===PASSWORD){
-    document.getElementById("dash").style.display="block";
-    load();
+  if(pass === ADMIN_PASSWORD){
+    localStorage.setItem("adminLoggedIn","true");
+    window.location.href = "dashboard.html";
+  }else{
+    document.getElementById("error").innerText="Wrong Password!";
   }
-}
-
-function load(){
-
-  onValue(ref(db,"clicks"),snap=>{
-    if(!snap.exists()) return;
-
-    let total=0, countries={}, devices={}, dates={};
-
-    snap.forEach(link=>{
-      link.forEach(c=>{
-        total++;
-        let v=c.val();
-        countries[v.country]=(countries[v.country]||0)+1;
-        devices[v.device]=(devices[v.device]||0)+1;
-        dates[v.date]=(dates[v.date]||0)+1;
-      });
-    });
-
-    document.getElementById("total").innerText=total;
-
-    createChart("countryChart",countries);
-    createChart("deviceChart",devices);
-    createChart("dailyChart",dates);
-  });
-
-  onValue(ref(db,"unique"),snap=>{
-    if(!snap.exists()) return;
-    let count=0;
-    snap.forEach(link=>{ count+=link.size; });
-    document.getElementById("unique").innerText=count;
-  });
-}
-
-function createChart(id,data){
-  new Chart(document.getElementById(id),{
-    type:'bar',
-    data:{
-      labels:Object.keys(data),
-      datasets:[{data:Object.values(data)}]
-    }
-  });
-}
-
-window.exportCSV=function(){
-  alert("CSV export ready (add blob logic if needed)");
 }
 
 </script>
