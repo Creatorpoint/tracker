@@ -2,77 +2,123 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard</title>
+<title>Prime Tracker Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body{
   margin:0;
   font-family:Arial;
+  display:flex;
   background:#f3f4f6;
 }
 
-.header{
+.sidebar{
+  width:250px;
   background:#111827;
   color:white;
-  padding:15px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+  height:100vh;
+  padding:20px;
+  overflow-y:auto;
 }
 
-.container{
+.sidebar h2{
+  margin-bottom:20px;
+}
+
+.sidebar ul{
+  list-style:none;
+  padding:0;
+}
+
+.sidebar li{
+  padding:10px;
+  cursor:pointer;
+  border-radius:6px;
+}
+
+.sidebar li:hover{
+  background:#1f2937;
+}
+
+.main{
+  flex:1;
   padding:20px;
+  overflow-y:auto;
 }
 
 .card{
   background:white;
   padding:20px;
   border-radius:10px;
-  box-shadow:0 5px 20px rgba(0,0,0,0.1);
   margin-bottom:20px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.08);
+}
+
+input{
+  width:100%;
+  padding:10px;
+  margin-bottom:10px;
 }
 
 button{
   padding:10px 15px;
-  border:none;
-  background:#111827;
+  background:#2563eb;
   color:white;
+  border:none;
   border-radius:6px;
   cursor:pointer;
 }
 
-button:hover{
-  background:#2563eb;
+.topbar{
+  margin-bottom:20px;
 }
 
-input{
-  padding:10px;
-  width:100%;
-  margin-bottom:10px;
+.live{
+  font-size:22px;
+  font-weight:bold;
+  color:#2563eb;
 }
 </style>
-
 </head>
 <body>
 
-<script>
-if(localStorage.getItem("adminLoggedIn") !== "true"){
-  window.location.href="index.html";
-}
-</script>
-
-<div class="header">
-  <h3>Prime Tracker Dashboard</h3>
-  <button onclick="logout()">Logout</button>
+<div class="sidebar">
+  <h2>Prime Tracker</h2>
+  <ul id="linkList"></ul>
 </div>
 
-<div class="container">
+<div class="main">
+
+<div class="topbar">
+<h2>Dashboard</h2>
+</div>
 
 <div class="card">
 <h3>Create Tracking Link</h3>
 <input type="text" id="originalURL" placeholder="Enter Original URL">
 <button onclick="createLink()">Generate Link</button>
-<p id="result"></p>
+<div id="result"></div>
+</div>
+
+<div class="card">
+<h3>Total Clicks: <span id="totalClicks">0</span></h3>
+<h3>Unique Visitors: <span id="uniqueClicks">0</span></h3>
+</div>
+
+<div class="card">
+<h3>Country Breakdown</h3>
+<canvas id="countryChart"></canvas>
+</div>
+
+<div class="card">
+<h3>Device Breakdown</h3>
+<canvas id="deviceChart"></canvas>
+</div>
+
+<div class="card">
+<h3>Date-wise Graph</h3>
+<canvas id="dateChart"></canvas>
 </div>
 
 </div>
@@ -80,7 +126,7 @@ if(localStorage.getItem("adminLoggedIn") !== "true"){
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAk7OeIvh-D7NC_QKkQNMria4GxL5fT2ws",
@@ -96,28 +142,81 @@ function randomID(){
   return Math.random().toString(36).substring(2,8);
 }
 
-window.createLink = function(){
+window.createLink = async function(){
   const url = document.getElementById("originalURL").value;
   if(!url) return alert("Enter URL");
 
   const id = randomID();
 
-  set(ref(db,"links/"+id),{
-    original: url,
-    created: Date.now()
+  await set(ref(db,"links/"+id),{
+    original:url,
+    created:Date.now()
   });
 
-  const trackingLink = "https://creatorpoint.github.io/Prime_tracker/?id="+id;
-
   document.getElementById("result").innerHTML =
-    `<b>Tracking Link:</b><br>
-    <a href="${trackingLink}" target="_blank">${trackingLink}</a>`;
+  `<p><b>Tracking Link:</b><br>
+  https://creatorpoint.github.io/Prime_tracker/?id=${id}</p>`;
+
+  loadLinks();
 }
 
-window.logout = function(){
-  localStorage.removeItem("adminLoggedIn");
-  window.location.href="index.html";
+function loadLinks(){
+  onValue(ref(db,"links"),(snapshot)=>{
+    const list = document.getElementById("linkList");
+    list.innerHTML="";
+    snapshot.forEach(link=>{
+      const li=document.createElement("li");
+      li.innerText=link.key;
+      li.onclick=()=>loadAnalytics(link.key);
+      list.appendChild(li);
+    });
+  });
 }
+
+function loadAnalytics(id){
+
+  onValue(ref(db,"clicks/"+id),(snapshot)=>{
+
+    let total=0;
+    let countryData={};
+    let deviceData={};
+    let dateData={};
+    let uniqueSet=new Set();
+
+    snapshot.forEach(click=>{
+      total++;
+      const v=click.val();
+
+      countryData[v.country]=(countryData[v.country]||0)+1;
+      deviceData[v.device]=(deviceData[v.device]||0)+1;
+      dateData[v.date]=(dateData[v.date]||0)+1;
+
+      uniqueSet.add(v.device+v.country);
+    });
+
+    document.getElementById("totalClicks").innerText=total;
+    document.getElementById("uniqueClicks").innerText=uniqueSet.size;
+
+    renderChart("countryChart",countryData,"bar");
+    renderChart("deviceChart",deviceData,"pie");
+    renderChart("dateChart",dateData,"line");
+  });
+}
+
+function renderChart(id,data,type){
+
+  new Chart(document.getElementById(id),{
+    type:type,
+    data:{
+      labels:Object.keys(data),
+      datasets:[{
+        data:Object.values(data)
+      }]
+    }
+  });
+}
+
+loadLinks();
 
 </script>
 
